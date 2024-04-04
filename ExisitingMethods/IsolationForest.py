@@ -2,41 +2,48 @@ import pandas as pd
 import seaborn as sns
 from sklearn.ensemble import IsolationForest
 import matplotlib.pyplot as plt
-
-df = pd.read_csv('~/Desktop/PHM/data_related/Blade-Icing/turbine15/15_data.csv')
-# print(df.info())
-# df.dropna()
-SPEED = "generator_speed"
-POWER = "power"
-ANOMALY_SCORE = "anomaly_score"
-ANOMALY = "anomaly"
-
-anomaly_inputs = [SPEED, POWER]
-
-model_IF = IsolationForest(contamination=0.06, random_state=42)
-model_IF.fit(df[anomaly_inputs])
-df[ANOMALY_SCORE] = model_IF.decision_function(df[anomaly_inputs])
-df[ANOMALY] = model_IF.predict(df[anomaly_inputs])
-
-df.loc[:, [SPEED, POWER, ANOMALY_SCORE, ANOMALY]]
+from common.config_bladeicing import *
 
 
-def outlier_plot(data, outlier_method_name, x_var, y_var, xaxis_limits=[0, 1], yaxis_limits=[0, 1]):
-    print(f'Outlier method: {outlier_method_name}')
+def prepare_df(file):
+    df = pd.read_csv(file)
+    df.dropna(inplace=True)
+    df.info()
 
-    g = sns.FacetGrid(data, col='anomaly', height=4, hue='anomaly', hue_order=[1, -1])
-    g.map(sns.scatterplot, x_var, y_var)
+    model_IF = IsolationForest(contamination=0.06, random_state=42)
+    model_IF.fit(df[anomaly_inputs])
+    df[ANOMALY_SCORE] = model_IF.decision_function(df[anomaly_inputs])
+    df[ANOMALY] = model_IF.predict(df[anomaly_inputs])
+    return df
+
+def outlier_plot(data, label_column, x_var, y_var, xaxis_limits=[-1, 1], yaxis_limits=[-1, 1]):
+    # print(f'Outlier method: {outlier_method_name}')
+    g = sns.FacetGrid(data, col=LABEL, hue=label_column, hue_order=[-1, 1], palette=palette)
+    g.map(sns.scatterplot, x_var, y_var, s=10)
     g.set(xlim=xaxis_limits, ylim=yaxis_limits)
-    axes = g.axes.flatten()
-    axes[0].set_title(f'{len(data[data[ANOMALY] == -1])} points')
-    axes[1].set_title(f'{len(data[data[ANOMALY] == 1])} points')
+                     # axes = g.axes.flatten()
+    # axes[0].set_title(f'{len(data[data[label_column] == -1])} points')
+    # axes[1].set_title(f'{len(data[data[label_column] == 1])} points')
+    g.add_legend()
     return g
 
 
-outlier_plot(df, "IF", SPEED, POWER, [-2, 2], [-1.5, 4])
+def visualize(df):
+    outlier_plot(df, ANOMALY, SPEED, POWER, [-3, 6], [-1.5, 3])
+    outlier_plot(df, LABEL, SPEED, POWER, [-3,6], [ -1.5, 3])
+    # outlier_plot(df, LABEL, SPEED, POWER, [-3, 6], [-1.5, 3])
 
-#
-#
-palette = ['#ff7f0e', '#1f77b4']
-sns.pairplot(df, vars=anomaly_inputs, hue=ANOMALY, palette=palette)
-plt.show()
+    sns.pairplot(df, vars=anomaly_inputs, hue=ANOMALY, palette=palette, size=10)
+    sns.pairplot(df, vars=anomaly_inputs, hue=LABEL, palette=palette, size=10)
+    plt.show()
+def print_mislabel(df):
+    print(f'Altogether there are{len(df)} instances')
+    print(f'{len(df[df[LABEL] == df[ANOMALY]])} instances correctly labelled')
+    print(f'{len(df[(df[LABEL] == 1) & (df[ANOMALY] == -1)])} anomalies are wrongly classified')
+    print(f'{len(df[(df[LABEL] == -1) & (df[ANOMALY] == 1)])} normal instances are classified as anomalies')
+
+
+if __name__ == '__main__':
+    df = prepare_df(new_data_file_with_label)
+    visualize(df)
+    print_mislabel(df)
