@@ -1,7 +1,7 @@
 from common.config_bladeicing import *
 import pandas as pd
 
-df_with_label = pd.read_csv(preprocessed_file)
+df_with_label = pd.read_csv(new_data_file_with_label)
 # df_with_label.info()
 df = df_with_label.loc[:, [TIMESTAMP,TURBINE, FAILURE]]
 df = df[df[TURBINE] == "T21"]
